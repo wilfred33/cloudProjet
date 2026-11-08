@@ -1,0 +1,175 @@
+version: "3.8"
+
+services:
+  # ============================================
+  # BASES DE DONNÉES
+  # ============================================
+
+  # Base de données des utilisateurs
+  users-db:
+    image: wilfred33/kv-storage-system:latest
+    ports: ["5984:5984"]
+    restart: on-failure
+    networks: ["scapp-network"]
+    volumes:
+      - users-data:/opt/couchdb/data
+
+  # Base de données des produits
+  products-db:
+    image: wilfred33/products-storage:latest
+    ports: ["5985:5984"]
+    restart: on-failure
+    networks: ["scapp-network"]
+    volumes:
+      - products-data:/opt/couchdb/data
+
+  # Base de données du panier
+  cart-db:
+    image: wilfred33/cart-db-image:latest
+    ports: ["5986:5984"]
+    restart: on-failure
+    networks: ["scapp-network"]
+    volumes:
+      - cart-data:/opt/couchdb/data
+
+  # Base de données de l'historique
+  history-db:
+    image: wilfred33/history-db-image:latest
+    ports: ["5987:5984"]
+    restart: on-failure
+    networks: ["scapp-network"]
+    volumes:
+      - history-data:/opt/couchdb/data
+
+  # ============================================
+  # MICROSERVICES
+  # ============================================
+
+  # Service d'authentification
+  auth-service:
+    image: wilfred33/scapp-auth:latest
+    container_name: auth-container
+    ports: ["8080:80"]
+    depends_on:
+      - users-db
+    environment:
+      - DB_HOST=users-db
+      - DB_NAME=users
+      - ADMIN_NAME=admin
+      - ADMIN_PASSW=admin
+      - WITH_PERSISTENT_DATA=Y
+    restart: on-failure
+    networks: ["scapp-network"]
+
+  # Service des produits
+  products-service:
+    image: wilfred33/scapp-products:latest
+    container_name: products-container
+    ports: ["8081:80"]
+    depends_on:
+      - products-db
+    environment:
+      - DB_HOST=products-db
+      - DB_NAME=products
+      - ADMIN_NAME=admin
+      - ADMIN_PASSW=admin
+      - WITH_PERSISTENT_DATA=Y
+    restart: on-failure
+    networks: ["scapp-network"]
+
+  # Service du panier
+  cart-service:
+    image: wilfred33/scapp-cart:latest
+    container_name: cart-container
+    ports: ["8083:80"]
+    depends_on:
+      - cart-db
+    environment:
+      - DB_HOST=cart-db
+      - DB_NAME=cart
+      - ADMIN_NAME=admin
+      - ADMIN_PASSW=admin
+      - WITH_PERSISTENT_DATA=Y
+    restart: on-failure
+    networks: ["scapp-network"]
+
+  # Service de l'historique
+  history-service:
+    image: wilfred33/scapp-history:latest
+    container_name: history-container
+    ports: ["8084:80"]
+    depends_on:
+      - history-db
+    environment:
+      - DB_HOST=history-db
+      - DB_NAME=history
+      - ADMIN_NAME=admin
+      - ADMIN_PASSW=admin
+      - WITH_PERSISTENT_DATA=Y
+    restart: on-failure
+    networks: ["scapp-network"]
+
+  # Service de recommandations
+  recommendations-service:
+    image: wilfred33/scapp-recommendations:latest
+    container_name: recommendations-container
+    ports: ["8085:80"]
+    depends_on:
+      - history-db
+      - cart-db
+      - products-db
+    environment:
+      - HISTORY_DB_HOST=history-db
+      - CART_DB_HOST=cart-db
+      - PRODUCTS_DB_HOST=products-db
+      - ADMIN_NAME=admin
+      - ADMIN_PASSW=admin
+    restart: on-failure
+    networks: ["scapp-network"]
+
+  # ============================================
+  # API GATEWAY
+  # ============================================
+
+  gateway:
+    image: wilfred33/gateway-image:latest
+    container_name: gateway-container
+    ports: ["8082:80"]
+    depends_on:
+      - auth-service
+      - products-service
+      - cart-service
+      - history-service
+      - recommendations-service
+    environment:
+      - RECOMMENDATIONS_SERVICE=recommendations-container
+    restart: on-failure
+    networks: ["scapp-network"]
+
+  # ============================================
+  # FRONTEND
+  # ============================================
+
+  frontend:
+    image: wilfred33/frontend-image:latest
+    ports: ["3000:3000"]
+    depends_on:
+      - gateway
+    restart: on-failure
+    networks: ["scapp-network"]
+ 
+# ============================================
+# RÉSEAU
+# ============================================
+networks:
+  scapp-network:
+    driver: bridge
+
+# ============================================
+# VOLUMES PERSISTANTS
+# ============================================
+volumes:
+  users-data:
+  products-data:
+  cart-data:
+  history-data:

@@ -1,0 +1,18 @@
+{
+  "name": "recommendations-service",
+  "version": "1.0.0",
+  "description": "Recommendation engine for shopping cart application",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "nano": "^10.1.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
